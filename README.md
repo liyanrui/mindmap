@@ -32,3 +32,7 @@ $ context foo-01.tex
 结果在同一目录下可得 foo-01.pdf 文件，而该文件中的图形即为思维导图。
 
 The resulting PDF file foo-01.pdf will be generated in the same directory, containing a rendered mind map.
+
+# 指南 / Tutorial
+
+https://www.zhihu.com/column/c_1932476336884156084
