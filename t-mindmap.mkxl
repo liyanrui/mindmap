@@ -1,0 +1,135 @@
+\writestatus{loading}{ConTeXt User Module / mindmap}
+\startmodule[mindmap]
+\startMPinclusions
+pair mindtracker[], mindpathend;
+color mindpath.colorset[], mindpath.knot.colorset[];
+numeric mindpath.level.current;
+numeric mindpath.howfar, mindpath.howfar.default;
+numeric mindpath.thickness, mindpath.thickness.default;
+numeric mindpath.random;
+numeric thought_at;
+pair thought_start;
+mindtracker[0] := (0, 0);
+mindpathend := (0, 0);
+for i = 0 upto 99:
+  mindpath.colorset[i] := .7white;
+  mindpath.knot.colorset[i] := darkred;
+endfor;
+mindpath.howfar := 3cm;
+mindpath.howfar.default := mindpath.howfar;
+mindpath.random := 5mm;
+mindpath.level.current := 0;
+mindpath.thickness := 4pt;
+mindpath.thickness.default := mindpath.thickness;
+thought_at := .3;
+thought_start := (0, 0);
+
+vardef get_thought_offset(expr p, t, dist) = 
+  save e, f, k, rot, offset, dx; 
+  pair e, f; numeric k, rot, dx; pair offset;
+  e := point (t - .05) along p;
+  f := point (t + .05) along p;
+  dx := xpart f - xpart e;
+  if dx = 0:
+    k := -1;
+  else:
+    k := (ypart f - ypart e) / (xpart f - xpart e);
+  fi;
+  rot := 180 * atan(k) / pi;
+  offset := dist * dir(rot + 90);   % 关键改动之处
+  offset
+enddef;
+
+vardef regular_curve(expr a, b) =
+  save p, w, h, s, e, f; path p; numeric w, h, s; pair e, f;
+  w := abs(xpart b - xpart a); h := abs(ypart b - ypart a);
+  s := .3;
+  if w > h:
+    if xpart b - xpart a >= 0:
+      e := a + (.5w, 0); f := b - (.5w, 0);
+    else:
+      e := a - (.5w, 0); f := b + (.5w, 0);
+    fi;
+  else:
+    if ypart b - ypart a >= 0:
+      e := a + (0, .5h); f := b - (0, .5h);
+    else:
+      e := a - (0, .5h); f := b + (0, .5h);
+    fi;
+  fi;
+  p := a .. controls e and f .. b;
+  p
+enddef;
+
+vardef path_for_thought(expr p, t, dist) =
+  save e, q, offset; path q; pair e, offset;
+  e := point t along p;
+  offset := get_thought_offset(p, t, dist);
+  q := (p cutbefore e) shifted offset;
+  q
+enddef;
+
+vardef polarcoord(expr a, r, angle) =
+  save b; pair b; b :=  ((r, 0) rotated angle) shifted a;
+  b
+enddef;
+
+vardef mind@# text anything =
+  save s; string s; s := str @#;
+  if s = "": do_mind anything (0); fi;
+  if s = "enter": do_mind anything (1); fi;
+  if s = "exit": mind_backward ; fi;
+  if s = "newroot": do_mind_new anything; fi;
+  if s = "handle": do_mind_handle anything; fi;
+  if s = "howfar": mindpath.howfar := anything; fi;
+enddef;
+
+def do_mind(expr name, angle, action) =
+  begingroup; save b, p, u, i; pair b; path p; numeric i;
+    i := mindpath.level.current;
+    b := polarcoord(mindtracker[i], mindpath.howfar randomized mindpath.random, angle);
+    p := regular_curve(mindtracker[i], b);
+    pickup pencircle scaled mindpath.thickness;
+    draw p withcolor mindpath.colorset[i];
+    draw mindtracker[i] withcolor mindpath.knot.colorset[i];
+    draw lmt_followtext [
+      text = name,
+      spread = false,
+      reverse = if xpart b < xpart mindtracker[i]: true else: false fi,
+      path = path_for_thought(p, thought_at, 1.3mindpath.thickness.default)
+      ];
+    thought_start := point thought_at along p;
+    if action > 0: mind_forward(b); fi;
+  endgroup;
+enddef;
+
+def do_mind_new(suffix newbase) (expr a) =
+  pair newbase; newbase := a;
+  mindtracker[0] := newbase;
+  mindpath.level.current := 0;
+enddef;
+
+vardef do_mind_handle(suffix current_branch) =
+  current_branch = thought_start;
+enddef;
+
+def mind_forward(expr a) =
+  mindpath.level.current := mindpath.level.current + 1;
+  mindtracker[mindpath.level.current] := a;
+  % 每深入一层，作为路径标注的文本偏移量就缩小 1.3 倍。
+  mindpath.thickness := mindpath.thickness / 1.3;
+enddef;
+
+def mind_backward =
+  mindpath.level.current := mindpath.level.current - 1;
+  if mindpath.level.current < 0:
+    message "incorrect mind path level!";
+  fi;
+  % 每回退一层，作为路径标注的文本偏移量就缩小 1.3 倍。
+  mindpath.thickness := mindpath.thickness * 1.3;
+enddef;
+\stopMPinclusions
+\stopmodule
+\endinput
+
+

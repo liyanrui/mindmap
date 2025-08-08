@@ -1,0 +1,18 @@
+\usemodule[mindmap]
+\startMPpage
+mind.enter("This is $A$", 30);
+    mind("This is $A_1$", 45);
+    mind("This is $A_2$", 15);
+mind.exit;
+
+mind.newroot(B, (1cm, -2cm));
+mind.enter("This is $B$", -20);
+    mind.enter("This is $B_{1}$", -5);
+        mind.howfar(5cm);
+        mind("This is $B_{1,1}$", 25);
+        mind("This is $B_{1,2}$", -5);
+        mind("This is $B_{1,3}$", -35);
+    mind.exit;
+    mind("This is $B_2$", -35);
+mind.exit;
+\stopMPpage

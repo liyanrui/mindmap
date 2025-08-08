@@ -1,0 +1,16 @@
+\usemodule[mindmap]
+\startMPpage
+mind.enter("This is $A$", 30);
+     % modify the length of the following mind paths.
+    mind.howfar(5cm);
+    mind("This is $A_1$", 45);
+    mind("This is $A_2$", 15);
+mind.exit;
+
+% modify the length of the following mind paths.
+mind.howfar(3cm);
+mind.enter("This is $B$", -20);
+    mind("This is $B_1$", -5);
+    mind("This is $B_2$", -35);
+mind.exit;
+\stopMPpage
