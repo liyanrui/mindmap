@@ -4,6 +4,8 @@ mindmap 是一个 MetaPost（确切而言是 MetaFun）模块，用于绘制思�
 
 mindmap is a MetaPost (specifically MetaFun) module for drawing mind maps.
 
+![demo](demo.png)
+
 ## 安装 / Installation
 
 假设你已经按照 「[ConTeXt wiki 上的安装指南](https://wiki.contextgarden.net/Introduction/Installation)」安装了 ConTeXt lmtx，且假设安装于 $HOME/opt/context，那么安装 mindmap 模块的过程是
