@@ -4,7 +4,7 @@ mindmap 是一个 MetaPost（确切而言是 MetaFun）模块，用于绘制思�
 
 mindmap is a MetaPost (specifically MetaFun) module for drawing mind maps.
 
-![demo](demo.png)
+![demo](demo/demo.png)
 
 ## 安装 / Installation
 
