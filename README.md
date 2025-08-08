@@ -14,8 +14,8 @@ Assume you have installed ConTeXt LMTX according to the "https://wiki.contextgar
 
 ```console
 $ CTXTHIRD=$HOME/opt/context/tex/texmf-local/tex/context/third
-$ mkdir -p $CTXTHIRD
-$ cp t-mindmap.mkxl $CTXTHIRD
+$ mkdir -p $CTXTHIRD/mindmap
+$ cp t-mindmap.mkxl $CTXTHIRD/mindmap
 $ context --generate
 ```
 
