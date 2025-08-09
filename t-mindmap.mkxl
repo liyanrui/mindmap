@@ -3,8 +3,8 @@
 \startMPinclusions
 lua("
   mindenv = {
-    tracker = {'(0, 0)'}, knot_color = 'darkred', colors = {},
-    level = 1, howfar = '3cm', thickness = '4pt', text_offset = '.2BodyFontSize',
+    tracker = {'(0, 0)'}, knotcolor = 'darkred', colors = {},
+    level = 1, howfar = '3cm', thickness = '4pt', textoffset = '.125BodyFontSize',
     handle = '(0, 0)', random = '5mm', thought = '.3', factor = 1.3
   }
   for i = 1, 100 do mindenv.colors[i] = '.7white'; end"
@@ -86,7 +86,7 @@ vardef mind@# text anything =
     mindenv_set("howfar") anything;
   fi;
   if s = "colors": mindpath_setcolors anything; fi;
-  if s = "knotcolor": mindenv_set("knot_color") anything; fi;
+  if s = "knotcolor": mindenv_set("knotcolor") anything; fi;
   if s = "thickness":
     mindenv_set("thickness") anything;
   fi;
@@ -105,14 +105,14 @@ def do_mind(expr name, angle, action) =
     p := regular_curve(tracker, b);
     pickup pencircle scaled thickness;
     draw p withcolor mindenv_get("colors[" & decimal i & "]");
-    draw tracker withcolor mindenv_get("knot_color");
+    draw tracker withcolor mindenv_get("knotcolor");
     q := p cutbefore (point here along p);
     draw lmt_followtext [
       text = name,
       spread = false,
       reverse = if xpart b < xpart tracker: true else: false fi,
       path = q
-    ] shifted get_thought_offset(q, mindenv_get("text_offset") + thickness);
+    ] shifted get_thought_offset(q, thickness + mindenv_get("textoffset"));
     mindenv_set("handle", point here along p);
     if action > 0: mind_forward(b); fi;
   endgroup;
