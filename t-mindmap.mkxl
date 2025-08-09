@@ -4,7 +4,7 @@
 lua("
   mindenv = {
     tracker = {'(0, 0)'}, knotcolor = 'darkred', colors = {},
-    level = 1, howfar = '3cm', thickness = '4pt', textoffset = '.125BodyFontSize',
+    level = 1, howfar = '4cm', thickness = '4pt', textoffset = '.125BodyFontSize',
     handle = '(0, 0)', random = '5mm', thought = '.3', factor = 1.3
   }
   for i = 1, 100 do mindenv.colors[i] = '.7white'; end"
