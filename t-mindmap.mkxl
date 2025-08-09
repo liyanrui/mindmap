@@ -1,29 +1,34 @@
 \writestatus{loading}{ConTeXt User Module / mindmap}
 \startmodule[mindmap]
 \startMPinclusions
-pair mindtracker[], mindpathend;
-color mindpath.colorset[], mindpath.knot.colorset[];
-numeric mindpath.level.current;
-numeric mindpath.howfar, mindpath.howfar.default;
-numeric mindpath.thickness, mindpath.thickness.default;
-numeric mindpath.random;
-numeric thought_at;
-pair thought_start;
-mindtracker[0] := (0, 0);
-mindpathend := (0, 0);
-for i = 0 upto 99:
-  mindpath.colorset[i] := .7white;
-  mindpath.knot.colorset[i] := darkred;
-endfor;
-mindpath.howfar := 3cm;
-mindpath.howfar.default := mindpath.howfar;
-mindpath.random := 5mm;
-mindpath.level.current := 0;
-mindpath.thickness := 4pt;
-mindpath.thickness.default := mindpath.thickness;
-thought_at := .3;
-thought_start := (0, 0);
+% 下面的 lua 表里，thickness[1] 是根路径粗度，
+% thickness[2] 是可变粗度，虽深度增大而缩小 factor 倍
+lua("
+  mindenv = {
+    tracker = {'(0, 0)'}, knot_color = 'darkred', colors = {},
+    level = 1, howfar = '3cm', thickness = {'4pt', '4pt'},
+    handle = '(0, 0)', random = '5mm', thought = '.3', factor = 1.3
+  }
+  for i = 1, 100 do mindenv.colors[i] = '.7white'; end"
+  );
 
+def mindenv_get(expr a) = lua("mp.print(mindenv." & a & ")") enddef;
+def mindenv_set(expr a, v) = lua("mindenv." & a & " = " & tolua(v)); enddef;
+vardef tolua(expr v) =
+  if numeric v: decimal(v) fi
+  if pair v: "'" & topair(v) & "'" fi
+  if color v: tocolor(v) fi
+enddef;
+vardef tocolor(expr a) =
+  save s; string s;
+  s := "'(" & decimal (redpart a) & ","
+            & decimal (greenpart a) & ","
+            & decimal (bluepart a) & ")'";
+  s
+enddef;
+\stopMPinclusions
+  
+\startMPinclusions[+]
 vardef get_thought_offset(expr p, t, dist) = 
   save e, f, k, rot, offset, dx; 
   pair e, f; numeric k, rot, dx; pair offset;
@@ -81,55 +86,82 @@ vardef mind@# text anything =
   if s = "exit": mind_backward ; fi;
   if s = "newroot": do_mind_new anything; fi;
   if s = "handle": do_mind_handle anything; fi;
-  if s = "howfar": mindpath.howfar := anything; fi;
+  if s = "howfar":
+    mindenv_set("howfar") anything;
+  fi;
+  if s = "colors": mindpath_setcolors anything; fi;
+  if s = "knotcolor": mindenv_set("knot_color") anything; fi;
 enddef;
 
 def do_mind(expr name, angle, action) =
-  begingroup; save b, p, u, i; pair b; path p; numeric i;
-    i := mindpath.level.current;
-    b := polarcoord(mindtracker[i], mindpath.howfar randomized mindpath.random, angle);
-    p := regular_curve(mindtracker[i], b);
-    pickup pencircle scaled mindpath.thickness;
-    draw p withcolor mindpath.colorset[i];
-    draw mindtracker[i] withcolor mindpath.knot.colorset[i];
+  begingroup;
+    save b, p, u, i, tracker, r, here;
+    pair b, tracker; path p; numeric i, howfar, r, here; 
+    i := mindenv_get("level");
+    tracker := mindenv_get("tracker[" & decimal i & "]");
+    here := mindenv_get("thought");
+    r := mindenv_get("howfar") randomized mindenv_get("random");
+    b := polarcoord(tracker, r, angle);
+    p := regular_curve(tracker, b);
+    pickup pencircle scaled mindenv_get("thickness[2]");
+    draw p withcolor mindenv_get("colors[" & decimal i & "]");
+    draw tracker withcolor mindenv_get("knot_color");
     draw lmt_followtext [
       text = name,
       spread = false,
-      reverse = if xpart b < xpart mindtracker[i]: true else: false fi,
-      path = path_for_thought(p, thought_at, 1.3mindpath.thickness.default)
-      ];
-    thought_start := point thought_at along p;
+      reverse = if xpart b < xpart tracker: true else: false fi,
+      path = path_for_thought(p, here, mindenv_get("factor") * mindenv_get("thickness[1]"))
+    ];
+    mindenv_set("handle", point here along p);
     if action > 0: mind_forward(b); fi;
   endgroup;
 enddef;
 
 def do_mind_new(suffix newbase) (expr a) =
   pair newbase; newbase := a;
-  mindtracker[0] := newbase;
-  mindpath.level.current := 0;
+  mindenv_set("tracker[1]", a);
+  mindenv_set("level", 1);
 enddef;
 
-vardef do_mind_handle(suffix current_branch) =
-  current_branch = thought_start;
+vardef do_mind_handle(suffix current_handle) =
+  current_handle = mindenv_get("handle");
 enddef;
 
 def mind_forward(expr a) =
-  mindpath.level.current := mindpath.level.current + 1;
-  mindtracker[mindpath.level.current] := a;
-  % 每深入一层，作为路径标注的文本偏移量就缩小 1.3 倍。
-  mindpath.thickness := mindpath.thickness / 1.3;
+  begingroup;
+    save i, t, f; numeric i, t, f;
+    i := mindenv_get("level") + 1;
+    mindenv_set("level", i);
+    mindenv_set("tracker[" & decimal i & "]", a);
+    t := mindenv_get("thickness[2]");
+    f := mindenv_get("factor");
+    mindenv_set("thickness[2]", t/f);
+  endgroup;
 enddef;
 
 def mind_backward =
-  mindpath.level.current := mindpath.level.current - 1;
-  if mindpath.level.current < 0:
-    message "incorrect mind path level!";
-  fi;
-  % 每回退一层，作为路径标注的文本偏移量就缩小 1.3 倍。
-  mindpath.thickness := mindpath.thickness * 1.3;
+  begingroup;
+    save i, t, f; numeric i, t, f;
+    i := mindenv_get("level") - 1;
+    if i < 0:
+      message "incorrect mind level!";
+    fi;
+    mindenv_set("level", i);
+    t := mindenv_get("thickness[2]");
+    f := mindenv_get("factor");
+    mindenv_set("thickness[2]", t*f);
+  endgroup;
+enddef;
+
+def mindpath_setcolors(text colors) =
+  begingroup;
+    save i; numeric i; i = 1;
+    for it = colors:
+      mindenv_set("colors[" & decimal i & "]", it);
+      i := i + 1;
+    endfor;
+  endgroup;
 enddef;
 \stopMPinclusions
 \stopmodule
 \endinput
-
-

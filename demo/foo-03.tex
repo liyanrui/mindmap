@@ -1,8 +1,7 @@
 \usemodule[mindmap]
 \startMPpage
-mindpath.colorset[0] := darkred;
-mindpath.colorset[1] := darkblue;
-mindpath.colorset[2] := darkgreen;
+mind.colors(darkred, darkblue, darkgreen);
+mind.knotcolor(lightgray);
 
 mind.enter("This is $A$", 30);
     mind("This is $A_1$", 45);
