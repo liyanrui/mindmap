@@ -35,4 +35,4 @@ The resulting PDF file foo-01.pdf will be generated in the same directory, conta
 
 # 指南 / Tutorial
 
-https://www.zhihu.com/column/c_1932476336884156084
+https://zhuanlan.zhihu.com/p/1937182854619570456

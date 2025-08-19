@@ -28,25 +28,28 @@ enddef;
   
 \startMPinclusions[+]
 vardef get_normal_offset(expr p, t, dist) = 
-  save e, f, k, rot, offset, dx; 
+  save e, f, rot, offset, dx, dy; 
   pair e, f; numeric k, rot, dx; pair offset;
   e := point (t - .05) along p;
   f := point (t + .05) along p;
   dx := xpart f - xpart e;
+  dy := ypart f - ypart e;
   if dx = 0:
-    k := -1;
+    if dy > 0:
+      rot := 90;
+    else:
+      rot := -90;
+    fi;
   else:
-    k := (ypart f - ypart e) / (xpart f - xpart e);
+    rot := 180 * atan(dy / dx) / pi;
   fi;
-  rot := 180 * atan(k) / pi;
-  offset := dist * dir(rot + 90);   % 关键改动之处
+  offset := dist * dir(rot + 90);
   offset
 enddef;
 
 vardef regular_curve(expr a, b) =
-  save p, w, h, s, e, f; path p; numeric w, h, s; pair e, f;
+  save p, w, h, e, f; path p; numeric w, h; pair e, f;
   w := abs(xpart b - xpart a); h := abs(ypart b - ypart a);
-  s := .3;
   if w > h:
     if xpart b - xpart a >= 0:
       e := a + (.5w, 0); f := b - (.5w, 0);
@@ -94,12 +97,17 @@ enddef;
 
 def do_mind(expr name, angle, action) =
   begingroup;
-    save b, p, q, u, i, tracker, r, here, thickness;
-    pair b, tracker; path p, q; numeric i, howfar, r, here, thickness; 
+    save b, p, q, u, i, tracker, r, here, thickness, f;
+    pair b, tracker; path p, q;
+    numeric i, howfar, r, here, thickness, f; 
     i := mindenv_get("level");
     tracker := mindenv_get("tracker[" & decimal i & "]");
     here := mindenv_get("thought");
     thickness := mindenv_get("thickness");
+    f := mindenv_get("factor");
+    for j = 2 upto i:
+      thickness := thickness / f;
+    endfor;
     r := mindenv_get("howfar") randomized mindenv_get("random");
     b := polarcoord(tracker, r, angle);
     p := regular_curve(tracker, b);
@@ -134,9 +142,6 @@ def mind_forward(expr a) =
     i := mindenv_get("level") + 1;
     mindenv_set("level", i);
     mindenv_set("tracker[" & decimal i & "]", a);
-    t := mindenv_get("thickness");
-    f := mindenv_get("factor");
-    mindenv_set("thickness", t/f);
   endgroup;
 enddef;
 
@@ -148,9 +153,6 @@ def mind_backward =
       message "incorrect mind level!";
     fi;
     mindenv_set("level", i);
-    t := mindenv_get("thickness");
-    f := mindenv_get("factor");
-    mindenv_set("thickness", t*f);
   endgroup;
 enddef;
 
