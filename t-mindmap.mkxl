@@ -1,36 +1,19 @@
 \writestatus{loading}{ConTeXt User Module / mindmap}
 \startmodule[mindmap]
 \startMPinclusions
-lua("
-  mindenv = {
-    tracker = {'(0, 0)'}, knotcolor = 'darkred', colors = {},
-    level = 1, stretch = 1, thickness = '4pt', offset = '.125BodyFontSize',
-    handle = '(0, 0)', head = '.5cm', tail = '1cm', body = '1cm', thought = '.2',
-    factor = 1.3
-  }
-  for i = 1, 100 do mindenv.colors[i] = '.7white'; end"
-);
+% module parameters
+numeric MM.level, MM.howfar, MM.stretch, MM.thickness, MM.offset;
+numeric MM.head, MM.body, MM.tail, MM.start, MM.factor;
+pair MM.tracker[], MM.handle, MM.currentbase, MM.currentend;
+path MM.currentpath;
+color MM.branchcolors[], MM.knotcolor;
 
-def mindenv_get(expr a) = lua("mp.print(mindenv." & a & ")") enddef;
-def mindenv_set(expr a, v) = lua("mindenv." & a & " = " & tolua(v)); enddef;
-vardef tolua(expr v) =
-  if numeric v: decimal(v) fi
-  if pair v: "'" & topair(v) & "'" fi
-  if color v: tocolor(v) fi
-enddef;
-vardef tocolor(expr a) =
-  save s; string s;
-  s := "'(" & decimal (redpart a) & ","
-            & decimal (greenpart a) & ","
-            & decimal (bluepart a) & ")'";
-  s
-enddef;
-\stopMPinclusions
-\startMPinclusions[+]
-% variables for debugging
-pair mindmap.currentbase, mindmap.currentend;
-path mindmap.currentbranch;
-mindmap.currentbase := mindenv_get("tracker[1]");
+MM.level := 0; MM.stretch := 1; MM.thickness := 4pt; MM.offset = .125BodyFontSize;
+MM.head := 5mm; MM.body := 1cm; MM.tail := 1cm; MM.start := .2; MM.factor := 1.3;
+MM.tracker[0] := (0, 0); MM.knotcolor := darkred; MM.handle := (0, 0);
+MM.currentbase := (0, 0); MM.currentend := (0, 0); MM.currentpath := (0, 0);
+% assume the level number is less than 100.
+for i = 0 upto 99: MM.branchcolors[i] := .7white; endfor;
 \stopMPinclusions
 
 \startMPinclusions[+]
@@ -108,134 +91,101 @@ vardef mind@# text anything =
   if s = "base": do_mind_base anything; fi;
   if s = "quote": do_mind_quote anything; fi;
   if s = "handle": do_mind_handle anything; fi;
-  if s = "stretch":
-    mindenv_set("stretch") anything;
-  fi;
+  if s = "stretch": MM.stretch := anything; fi;
   if s = "colors": mindpath_setcolors anything; fi;
-  if s = "knotcolor": mindenv_set("knotcolor") anything; fi;
-  if s = "thickness":
-    mindenv_set("thickness") anything;
-  fi;
+  if s = "knotcolor": MM.knotcolor := anything; fi;
+  if s = "thickness": MM.thickness := anything; fi;
   if s = "curve":
     regular_curve anything
   fi
 enddef;
 
-def mindenv_to_local =
-  save L;
-  numeric L.i, L.howfar, L.head, L.body, L.tail, L.tail;
-  numeric L.thickness, L.offset, L.stretch, L.factor;
-  pair L.tracker, L.handle;
-  color L.branchcolor, L.knotcolor;
-  L.i := mindenv_get("level");
-  L.tracker := mindenv_get("tracker[" & decimal L.i & "]");
-  L.thickness := mindenv_get("thickness");
-  L.factor := mindenv_get("factor");
-  for j = 2 upto L.i:
-    L.thickness := L.thickness / L.factor;
-  endfor;
-  L.offset := mindenv_get("offset");
-  L.head := mindenv_get("head");
-  L.body := mindenv_get("body");
-  L.tail := mindenv_get("tail");
-  L.stretch := mindenv_get("stretch");
-  L.branchcolor := mindenv_get("colors[" & decimal L.i & "]");
-  L.knotcolor := mindenv_get("knotcolor");
-  L.thought := mindenv_get("thought");
-enddef;
-
 def do_mind(expr name, angle, action) =
   begingroup;
-    mindenv_to_local;
-    save b, p, q, w, pos, sign;
-    pair b, pos; path p, q; numeric w, sign;
+    save b, p, q, w, pos, tracker, howfar, howthick, sign;
+    pair b, pos, tracker; path p, q; numeric w, howfar, sign;
     w := bbwidth textext(name);
-    L.howfar := L.head + L.body + L.stretch * w + L.tail;
-    b := polarcoord(L.tracker, L.howfar, angle);
-    p := regular_curve(L.tracker, b);
-    draw p withpen pencircle scaled L.thickness withcolor L.branchcolor;
-    draw L.tracker withpen pencircle scaled (L.thickness + 2pt) withcolor L.knotcolor;
-    L.handle := point L.thought along p;
-    mindenv_set("handle", L.handle);
-    q := p cutbefore (point (arclength p - w - L.tail) on p);
-    sign := 1; pos := get_normal_offset(q, .5, L.thickness + L.offset, sign);
+    howfar := MM.head + MM.body + MM.stretch * w + MM.tail;
+    howthick := MM.thickness;
+    for i = 0 upto MM.level:
+      howthick := howthick / MM.factor;
+    endfor;
+    tracker := MM.tracker[MM.level];
+    b := polarcoord(tracker, howfar, angle);
+    p := regular_curve(tracker, b);
+    draw p withpen pencircle scaled howthick withcolor MM.branchcolors[MM.level];
+    draw tracker withpen pencircle scaled (howthick + 2pt) withcolor MM.knotcolor;
+    MM.handle := point MM.start along p;
+    q := p cutbefore (point (arclength p - w - MM.tail) on p);
+    sign := 1; pos := get_normal_offset(q, .5, howthick + MM.offset, sign);
     draw lmt_followtext [
       text = name,
       spread = false,
       reverse = (if sign > 0: false else: true fi),
       path = q ] shifted pos;
     if action > 0: mind_forward(b); fi;
-    % for debugging
-    mindmap.currentbase := L.tracker;
-    mindmap.currentend := b;
-    mindmap.currentbranch := p;
+    MM.currentbase := tracker;
+    MM.currentend := b;
+    MM.currentpath := p;
   endgroup;
 enddef;
 
 def do_mind_quote(expr name, b) =
   begingroup;
-    mindenv_to_local;
-    save p, q, w, pos, sign;
-    pair pos; path p, q; numeric w, sign;
+    save p, q, w, pos, tracker, howthick, sign;
+    pair pos, tracker; path p, q; numeric w, howthick, sign;
+    tracker := MM.tracker[MM.level];
+    howthick := MM.thickness;
+    for i = 0 upto MM.level:
+      howthick := howthick / MM.factor;
+    endfor;
     w := bbwidth textext(name);
-    p := regular_curve(L.tracker, b);
-    draw p withpen pencircle scaled L.thickness withcolor L.branchcolor;
-    draw L.tracker withpen pencircle scaled (L.thickness + 2pt) withcolor L.knotcolor;
-    draw b withpen pencircle scaled (L.thickness / L.factor + 2pt) withcolor L.knotcolor;
-    L.handle := point L.thought along p;
-    mindenv_set("handle", L.handle);
-    sign := 1; pos := get_normal_offset(p, .5, L.thickness + L.offset, sign);
+    p := regular_curve(tracker, b);
+    draw p withpen pencircle scaled howthick withcolor MM.branchcolors[MM.level];
+    draw tracker withpen pencircle scaled (howthick + 2pt) withcolor MM.knotcolor;
+    draw b withpen pencircle scaled (howthick / MM.factor + 2pt) withcolor MM.knotcolor;
+    MM.handle := point MM.start along p;
+    sign := 1; pos := get_normal_offset(p, .5, howthick + MM.offset, sign);
     draw lmt_followtext [
       text = name,
       spread = false,
       reverse = (if sign > 0: false else: true fi),
       path = p ] shifted pos;
     % for debugging
-    mindmap.currentbase := L.tracker;
-    mindmap.currentend := b;
-    mindmap.currentbranch := p;
+    MM.currentbase := tracker;
+    MM.currentend := b;
+    MM.currentpath := p;
   endgroup;
 enddef;
 
 def do_mind_new(suffix newbase) (expr a) =
   pair newbase; newbase := a;
-  mindenv_set("tracker[1]", a);
-  mindenv_set("level", 1);
+  MM.tracker[0] := a; MM.level := 0;
 enddef;
 
 def do_mind_base(suffix current_base) =
-  current_base = mindmap.currentbase;
+  current_base := MM.currentbase;
 enddef;
 
 def do_mind_handle(suffix current_handle) =
-  current_handle = mindenv_get("handle");
+  current_handle := MM.handle;
 enddef;
 
 def mind_forward(expr a) =
-  begingroup;
-    save i, t, f; numeric i, t, f;
-    i := mindenv_get("level") + 1;
-    mindenv_set("level", i);
-    mindenv_set("tracker[" & decimal i & "]", a);
-  endgroup;
+  MM.level := MM.level + 1;
+  MM.tracker[MM.level] := a;
 enddef;
 
 def mind_backward =
-  begingroup;
-    save i, t, f; numeric i, t, f;
-    i := mindenv_get("level") - 1;
-    if i < 0:
-      message "incorrect mind level!";
-    fi;
-    mindenv_set("level", i);
-  endgroup;
+  MM.level := MM.level - 1;
+  if MM.level < 0: message "incorrect mind level."; fi;
 enddef;
 
 def mindpath_setcolors(text colors) =
   begingroup;
-    save i; numeric i; i = 1;
+    save i; numeric i; i = 0;
     for it = colors:
-      mindenv_set("colors[" & decimal i & "]", it);
+      MM.branchcolors[i] := it;
       i := i + 1;
     endfor;
   endgroup;
