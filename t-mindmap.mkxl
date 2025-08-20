@@ -36,12 +36,14 @@ vardef get_normal_offset(expr p, t, dist)(suffix sign) =
   offset
 enddef;
 
-vardef regular_curve(expr a, b) =
-  save p, w, h, loc_a, loc_b, u, loc_ab, sign;
-  path p; numeric w, h, sign, u; pair loc_a, loc_b, loc_ab;
-  w := abs(xpart b - xpart a);
-  h := abs(ypart b - ypart a);
-  u := .4;
+% softness interval [0, 1]
+vardef regular_curve(expr a, b, softness) =
+  save p, w, h, loc_a, loc_b, loc_ab, u, sign;
+  path p; numeric w, h, u, sign; pair loc_a, loc_b, loc_ab;
+  w := abs(xpart b - xpart a); h := abs(ypart b - ypart a);
+  % doing this can avoid loc_a equals loc_b in the following code.
+  if w > 1: w := w - 1; fi;  if h > 1: h := h - 1; fi;
+  u := .5softness;
   if w > h:
     if (xpart b - xpart a) >= 0:
       loc_a := a + (u * w, 0); loc_b := b - (u * w, 0);
@@ -55,7 +57,7 @@ vardef regular_curve(expr a, b) =
       loc_a := a - (0, u * h); loc_b := b + (0, u * h);
     fi;
   fi;
-  % 不允许出现水平竖直的直线路径
+  % disturbing horizonal or vertical path.
   loc_ab := unitvector(loc_b - loc_a);
   if abs(loc_ab dotprod left) = 1:
     sign := if 0 randomized 1 > 0.5: 1; else: -1; fi;
@@ -86,9 +88,12 @@ vardef mind@# text anything =
   save s; string s; s := str @#;
   if s = "": do_mind anything (0); fi;
   if s = "enter": do_mind anything (1); fi;
+  if s = "converge": do_mind_converge anything (0); fi;
+  if s = "converge.enter": do_mind_converge anything (1); fi;
   if s = "exit": mind_backward ; fi;
   if s = "newroot": do_mind_new anything; fi;
   if s = "base": do_mind_base anything; fi;
+  if s = "tailend": do_mind_tailend anything; fi;
   if s = "quote": do_mind_quote anything; fi;
   if s = "handle": do_mind_handle anything; fi;
   if s = "stretch": MM.stretch := anything; fi;
@@ -96,35 +101,63 @@ vardef mind@# text anything =
   if s = "knotcolor": MM.knotcolor := anything; fi;
   if s = "thickness": MM.thickness := anything; fi;
   if s = "curve":
-    regular_curve anything
+    regular_curve anything (.9)
   fi
+enddef;
+
+def prepare_branch_parameters(expr name) =
+  save L; numeric L.tw, L.howfar, L.howthick; pair L.tracker;
+  L.tw := bbwidth textext(name);
+  L.howfar := MM.head + MM.body + MM.stretch * L.tw + MM.tail;
+  L.howthick := MM.thickness;
+  for i = 0 upto MM.level:
+    L.howthick := L.howthick / MM.factor;
+  endfor;
+  L.tracker := MM.tracker[MM.level];
+enddef;
+
+% this macro can only be used in do_mind, do_mind_converge, do_mind_quote.
+def __priv_draw_mind(expr name, p, howthick, tracker) =
+  begingroup;
+  save sign, pos; numeric sign; pair pos;
+  MM.handle := point MM.start along p;
+  sign := 1; pos := get_normal_offset(p, .5, howthick + MM.offset, sign);
+  draw p withpen pencircle scaled howthick withcolor MM.branchcolors[MM.level];
+  draw tracker withpen pencircle scaled (howthick + 2pt) withcolor MM.knotcolor;
+  draw lmt_followtext [
+    text = name,
+    spread = false,
+    reverse = (if sign > 0: false else: true fi),
+    path = p ] shifted pos;
+  endgroup;
 enddef;
 
 def do_mind(expr name, angle, action) =
   begingroup;
-    save b, p, q, w, pos, tracker, howfar, howthick, sign;
-    pair b, pos, tracker; path p, q; numeric w, howfar, sign;
-    w := bbwidth textext(name);
-    howfar := MM.head + MM.body + MM.stretch * w + MM.tail;
-    howthick := MM.thickness;
-    for i = 0 upto MM.level:
-      howthick := howthick / MM.factor;
-    endfor;
-    tracker := MM.tracker[MM.level];
-    b := polarcoord(tracker, howfar, angle);
-    p := regular_curve(tracker, b);
-    draw p withpen pencircle scaled howthick withcolor MM.branchcolors[MM.level];
-    draw tracker withpen pencircle scaled (howthick + 2pt) withcolor MM.knotcolor;
-    MM.handle := point MM.start along p;
-    q := p cutbefore (point (arclength p - w - MM.tail) on p);
-    sign := 1; pos := get_normal_offset(q, .5, howthick + MM.offset, sign);
-    draw lmt_followtext [
-      text = name,
-      spread = false,
-      reverse = (if sign > 0: false else: true fi),
-      path = q ] shifted pos;
+    save b, p, q, pos, sign;
+    pair b, pos; path p, q; numeric sign;
+    prepare_branch_parameters(name);
+    b := polarcoord(L.tracker, L.howfar, angle);
+    p := regular_curve(L.tracker, b, .9);
+    __priv_draw_mind(name, p, L.howthick, L.tracker);
     if action > 0: mind_forward(b); fi;
-    MM.currentbase := tracker;
+    MM.currentbase := L.tracker;
+    MM.currentend := b;
+    MM.currentpath := p;
+  endgroup;
+enddef;
+
+def do_mind_converge(expr name, angle, target, action) =
+  begingroup;
+    save b, p, q, pos, sign;
+    pair b, pos; path p, q; numeric sign;
+    prepare_branch_parameters(name);
+    b := polarcoord(L.tracker, .5L.howfar, angle);
+    p := regular_curve(L.tracker, b, .98);
+    p := p .. regular_curve(b, target, .98);
+    __priv_draw_mind(name, p, L.howthick, L.tracker);
+    if action > 0: mind_forward(target); fi;
+    MM.currentbase := L.tracker;
     MM.currentend := b;
     MM.currentpath := p;
   endgroup;
@@ -132,27 +165,14 @@ enddef;
 
 def do_mind_quote(expr name, b) =
   begingroup;
-    save p, q, w, pos, tracker, howthick, sign;
-    pair pos, tracker; path p, q; numeric w, howthick, sign;
-    tracker := MM.tracker[MM.level];
-    howthick := MM.thickness;
-    for i = 0 upto MM.level:
-      howthick := howthick / MM.factor;
-    endfor;
-    w := bbwidth textext(name);
-    p := regular_curve(tracker, b);
-    draw p withpen pencircle scaled howthick withcolor MM.branchcolors[MM.level];
-    draw tracker withpen pencircle scaled (howthick + 2pt) withcolor MM.knotcolor;
-    draw b withpen pencircle scaled (howthick / MM.factor + 2pt) withcolor MM.knotcolor;
-    MM.handle := point MM.start along p;
-    sign := 1; pos := get_normal_offset(p, .5, howthick + MM.offset, sign);
-    draw lmt_followtext [
-      text = name,
-      spread = false,
-      reverse = (if sign > 0: false else: true fi),
-      path = p ] shifted pos;
+    save b, p, q, pos, sign;
+    pair b, pos; path p, q; numeric sign;
+    prepare_branch_parameters(name);
+    p := regular_curve(L.tracker, b, .9);
+    draw b withpen pencircle scaled (L.howthick / MM.factor + 2pt) withcolor MM.knotcolor;
+    __priv_draw_mind(name, p, L.howthick, L.tracker);
     % for debugging
-    MM.currentbase := tracker;
+    MM.currentbase := L.tracker;
     MM.currentend := b;
     MM.currentpath := p;
   endgroup;
@@ -165,6 +185,10 @@ enddef;
 
 def do_mind_base(suffix current_base) =
   current_base := MM.currentbase;
+enddef;
+
+def do_mind_tailend(suffix curent_end) =
+  current_end := MM.currentend;
 enddef;
 
 def do_mind_handle(suffix current_handle) =
