@@ -15,7 +15,7 @@
 
 \subject{Introduction}
 
-The mindmap is a ConTeXt module written in MetaPost for drawing mind maps. Unlike most mind-mappint software, the mindmap module places all information on paths, its nodes carry no content at all. In other words, the module sees no container-like nodes filled with text or images. A mind map is simply a set of connected paths, and the information appears as annotations along them.
+The mindmap is a \ConTeXt\ module written in MetaPost for drawing mind maps. Unlike most mind-mappint software, the mindmap module places all information on paths, its nodes carry no content at all. In other words, the module sees no container-like nodes filled with text or images. A mind map is simply a set of connected paths, and the information appears as annotations along them.
 
 The simplest \ConTeXt\ source file for using the mindmap module is as follows.
 
@@ -34,8 +34,8 @@ Creat a souce file named \boxquote{foo.tex} that its content is
 \usemodule[mindmap]
 \startMPpage
 mind.enter("$\delta_{ij}$ is", 15);
-  mind("1, if $i=j$.", 15);
-  mind("0, otherwise.", -15);
+  mind("1, if $i=j$.", 10);
+  mind("0, otherwise.", -20);
 mind.exit;
 \stopMPpage
 \stopMP
@@ -68,9 +68,9 @@ In the code above, the \boxquote{\type{15}} is the angle that indicates the dire
 
 \startexample
 pair base, a, b;
-base := mindmap.currentbase;
-mind("A", 45); a := mindmap.currentend;
-mind("B", -30); b := mindmap.currentend;
+base := MM.currentbase;
+mind("A", 45); a := MM.currentend;
+mind("B", -30); b := MM.currentend;
 
 path pa, pb, ox, oy;
 pa := base -- a; pb := base -- b;
@@ -78,9 +78,9 @@ ox := base -- (base + (4cm, 0));
 oy := base -- (base + (0, 4cm));
 
 path angle_a, angle_b;
-anglelength := 1cm;
-angle_a := anglebetween(ox, pa, "\tfx $45$");
 anglelength := 1.5cm;
+angle_a := anglebetween(ox, pa, "\tfx $45$");
+anglelength := 2.5cm;
 angle_b := anglebetween(ox, pb, "\tfx $-30$");
 
 for it = pa, pb, ox, oy, angle_a, angle_b:
@@ -96,7 +96,7 @@ mind.enter("$A$", 15);
   mind("$A_{1}$", 15);
 mind.exit;
 mind.enter("$B$", -15);
-  mind("$B_{1}$", -15);
+  mind("$B_{1}$", -5);
   mind("$B_{2}$", -30);
 mind.exit;
 \stopexample
@@ -136,17 +136,11 @@ mind.exit;
 If you fell the lengths of branches too short, you can strech them by a given factor using the \type{mind.stretch} macro. The example below stretches the branches to twice their default length.
 
 \startexample
-mind.stretch(1.3);
 mind("A", 0);
 mind("B", 90);
-mind("C", -90);
-mind("D", -180);
 
-/BTEX\strut/ETEX
-
-/BTEX\strut/ETEX
-
-/BTEX\strut/ETEX
+mind.stretch(2);
+mind("C", -180);
 \stopexample
 \example[option=MP][stretch]{Stretching branches}{\externalfigure[05.pdf]}
 
@@ -155,45 +149,43 @@ mind("D", -180);
 Mind maps drawn by the mindmap module are not strictly tree-structured. The default root is at \type{(0, 0)}, but you can use the \type{mind.newroot} macro to create the starting point or root of new mind map. For instance, 
 
 \startexample
-mind.enter("A", 0);
-  mind("something in A", -10);
+mind.enter("A", 10);
+  mind("something in A", 20);
 mind.exit;
 
-mind.newroot(mind_b, (0, -3cm));
+mind.newroot(mind_b, (0, -1cm));
 mind.enter("B", 0);
-  mind("somthing in B", 15);
+  mind("somthing in B", -10);
 mind.exit;
 \stopexample
 \example[option=MP][new-root]{New root}{\externalfigure[06.pdf]}
 
 The \type{mind_b} in the code above is a variable of MetaPost's \type{pair} type, that stores the location of the new root.
 
-\section{Branch Quote}
+Once you create a new branch, you can catch its base and handle point with the marcros \type{mind.base}, \type{mind.handle} and \type{mind.tailend}.
 
-Once you create a new branch, you can catch its base and handle point with the marcros \type{mind.base} and \type{mind.handle}.
-
-\startexample
-pair anchor[];  
+\startMP
+pair p[];
 mind.knotcolor(darkgray);
-mind.enter("A", 0);
-  mind("something in A", -10);
-  mind.handle(anchor1);
-  mind("something else in A", -35);
-  mind.handle(anchor2);
-  mind.base(anchor3);
-mind.exit;
 
+mind.enter("$A$", 0);
+  mind("$A_1$", 10); mind.handle(p1);
+  mind("$A_2$", -20); mind.tailend(p2); 
+  mind.base(p3);
+mind.exit;
+\stopMP
+\startexample
 pickup pencircle scaled 6pt;
-draw anchor1 withcolor darkblue;
-draw anchor2 withcolor darkgreen;
-draw anchor3 withcolor darkred;
+draw p1 withcolor darkblue;
+draw p2 withcolor darkgreen;
+draw p3 withcolor darkred;
 \stopexample
 \example[option=MP][anchors]{Anchors}{\externalfigure[07.pdf]}
 
 Based on these anchor points, we can quote a branch in other tree with a new root. The following example shows a scenario where two trees share a branch.
 
 \startMP
-pair demo;  
+pair demo;
 mind.enter("A", 0);
   mind("something in A", -15);
   mind.enter("something else in A", -35);
@@ -208,9 +200,31 @@ mind.exit
 \stopMP
 \placeExample[here,force][branch-quote]{Quoting branch}{\externalfigure[08.pdf]}
 
+\section{Convergence}
+
+Most mind-mapping software assumes that thinking is always divergent. The mindmap module disagrees, so it offers a convergent mind feature. You can converge a set branches with the macros \type{mind.converge} and \type{mind.converge.enter}.
+
+\startMP
+pair p;
+MM.BEGIN := 0; MM.END := 1;
+mind.enter("\type{/usr/src/}", 0);
+  mind.stretch(2);
+  mind("\type{kernel-6.6}/", 0);
+  mind.tailend(p);
+  mind.converge("\type{kernel-6.4}/", 25, p);
+  mind.converge.enter("\type{kernel-6.8}/", -25, p);
+    mind.stretch(1);
+    mind("\type{arch}/", 0);
+  mind.ext;
+mind.exit;
+\stopMP
+\placeExample[here,force][convergence]{Branch convergence}{\externalfigure[09.pdf]}
+
+In the example above, \type{MM.BEGIN} and \type{MM.END} both are the module parameters. They delimit the segment of a branch where annotation text may appear; the text is restricted to the interval [MM.BEGIN, MM.END] along that branch. The segment [0, 1] represents the entire branch.
+
 \subject{Afterwords}
 
-The mindmap module is a practice in learning the MetaPost language. Its inspiration and foundation come from the macro \type{lmt_followtext}, implemented by Hans Hagen in LuaMetaFun---the next-generation MetaPost still under development---which places text along an arbitrary curved path; see Chapter 5 of the LuaMetaFun manual. Within the ConTeXt LMTX environment, the manual can be founded with the following command:
+The mindmap module is a practice in learning the MetaPost language. Its inspiration and foundation come from the macro \type{lmt_followtext}, implemented by Hans Hagen in LuaMetaFun---the next-generation MetaPost still under development---which places text along an arbitrary curved path; see Chapter 5 of the LuaMetaFun manual. Within the \ConTeXt\ LMTX environment, the manual can be founded with the following command:
 
 \starttyping
 $ mtxrun --search luametafun.pdf

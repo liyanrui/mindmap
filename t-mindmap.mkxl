@@ -3,13 +3,13 @@
 \startMPinclusions
 % module parameters
 numeric MM.level, MM.howfar, MM.stretch, MM.thickness, MM.offset;
-numeric MM.head, MM.body, MM.tail, MM.start, MM.factor;
+numeric MM.head, MM.tail, MM.BEGIN, MM.END, MM.factor;
 pair MM.tracker[], MM.handle, MM.currentbase, MM.currentend;
 path MM.currentpath;
 color MM.branchcolors[], MM.knotcolor;
 
 MM.level := 0; MM.stretch := 1; MM.thickness := 4pt; MM.offset = .125BodyFontSize;
-MM.head := 5mm; MM.body := 1cm; MM.tail := 1cm; MM.start := .2; MM.factor := 1.3;
+MM.head := 1cm;  MM.tail := 1cm; MM.factor := 1.3; MM.BEGIN := .25; MM.END := .75;
 MM.tracker[0] := (0, 0); MM.knotcolor := darkred; MM.handle := (0, 0);
 MM.currentbase := (0, 0); MM.currentend := (0, 0); MM.currentpath := (0, 0);
 % assume the level number is less than 100.
@@ -108,7 +108,7 @@ enddef;
 def prepare_branch_parameters(expr name) =
   save L; numeric L.tw, L.howfar, L.howthick; pair L.tracker;
   L.tw := bbwidth textext(name);
-  L.howfar := MM.head + MM.body + MM.stretch * L.tw + MM.tail;
+  L.howfar := MM.stretch * (MM.head + L.tw + MM.tail);
   L.howthick := MM.thickness;
   for i = 0 upto MM.level:
     L.howthick := L.howthick / MM.factor;
@@ -119,16 +119,17 @@ enddef;
 % this macro can only be used in do_mind, do_mind_converge, do_mind_quote.
 def __priv_draw_mind(expr name, p, howthick, tracker) =
   begingroup;
-  save sign, pos; numeric sign; pair pos;
-  MM.handle := point MM.start along p;
-  sign := 1; pos := get_normal_offset(p, .5, howthick + MM.offset, sign);
+  save sign, pos, q; numeric sign; pair pos; path q;
+  MM.handle := point MM.BEGIN along p;
   draw p withpen pencircle scaled howthick withcolor MM.branchcolors[MM.level];
   draw tracker withpen pencircle scaled (howthick + 2pt) withcolor MM.knotcolor;
+  q := (p cutbefore MM.handle) cutafter (point MM.END along p);
+  sign := 1; pos := get_normal_offset(q, .5, howthick + MM.offset, sign);
   draw lmt_followtext [
     text = name,
     spread = false,
     reverse = (if sign > 0: false else: true fi),
-    path = p ] shifted pos;
+    path = q ] shifted pos;
   endgroup;
 enddef;
 
@@ -158,7 +159,7 @@ def do_mind_converge(expr name, angle, target, action) =
     __priv_draw_mind(name, p, L.howthick, L.tracker);
     if action > 0: mind_forward(target); fi;
     MM.currentbase := L.tracker;
-    MM.currentend := b;
+    MM.currentend := target;
     MM.currentpath := p;
   endgroup;
 enddef;
@@ -187,7 +188,7 @@ def do_mind_base(suffix current_base) =
   current_base := MM.currentbase;
 enddef;
 
-def do_mind_tailend(suffix curent_end) =
+def do_mind_tailend(suffix current_end) =
   current_end := MM.currentend;
 enddef;
 
