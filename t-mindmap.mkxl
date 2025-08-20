@@ -5,7 +5,8 @@ lua("
   mindenv = {
     tracker = {'(0, 0)'}, knotcolor = 'darkred', colors = {},
     level = 1, stretch = 1, thickness = '4pt', offset = '.125BodyFontSize',
-    handle = '(0, 0)', howclose = '4cm', thought = '1cm', factor = 1.3
+    handle = '(0, 0)', head = '.5cm', tail = '1cm', body = '1cm', thought = '.2',
+    factor = 1.3
   }
   for i = 1, 100 do mindenv.colors[i] = '.7white'; end"
 );
@@ -25,7 +26,13 @@ vardef tocolor(expr a) =
   s
 enddef;
 \stopMPinclusions
-  
+\startMPinclusions[+]
+% variables for debugging
+pair mindmap.currentbase, mindmap.currentend;
+path mindmap.currentbranch;
+mindmap.currentbase := mindenv_get("tracker[1]");
+\stopMPinclusions
+
 \startMPinclusions[+]
 vardef get_normal_offset(expr p, t, dist)(suffix sign) = 
   save e, f, rot, offset, dx, dy, normal; 
@@ -47,22 +54,37 @@ vardef get_normal_offset(expr p, t, dist)(suffix sign) =
 enddef;
 
 vardef regular_curve(expr a, b) =
-  save p, w, h, e, f; path p; numeric w, h; pair e, f;
-  w := abs(xpart b - xpart a); h := abs(ypart b - ypart a);
+  save p, w, h, loc_a, loc_b, u, loc_ab, sign;
+  path p; numeric w, h, sign, u; pair loc_a, loc_b, loc_ab;
+  w := abs(xpart b - xpart a);
+  h := abs(ypart b - ypart a);
+  u := .4;
   if w > h:
-    if xpart b - xpart a >= 0:
-      e := a + (.5w, 0); f := b - (.5w, 0);
+    if (xpart b - xpart a) >= 0:
+      loc_a := a + (u * w, 0); loc_b := b - (u * w, 0);
     else:
-      e := a - (.5w, 0); f := b + (.5w, 0);
+      loc_a := a - (u * w, 0); loc_b := b + (u * w, 0);
     fi;
   else:
-    if ypart b - ypart a >= 0:
-      e := a + (0, .5h); f := b - (0, .5h);
+    if (ypart b - ypart a) >= 0:
+      loc_a := a + (0, u * h); loc_b := b - (0, u * h);
     else:
-      e := a - (0, .5h); f := b + (0, .5h);
+      loc_a := a - (0, u * h); loc_b := b + (0, u * h);
     fi;
   fi;
-  p := a .. controls e and f .. b;
+  % 不允许出现水平竖直的直线路径
+  loc_ab := unitvector(loc_b - loc_a);
+  if abs(loc_ab dotprod left) = 1:
+    sign := if 0 randomized 1 > 0.5: 1; else: -1; fi;
+    loc_a := loc_a + sign * (0, .1w);
+    loc_b := loc_b - sign * (0, .1w);
+  fi;
+  if abs(loc_ab dotprod up) = 1:
+    sign := if 0 randomized 1 > 0.5: 1; else: -1; fi;
+    loc_a := loc_a + sign * (.1h, 0);
+    loc_b := loc_b - sign * (.1h, 0);
+  fi;
+  p := a .. controls loc_a and loc_b .. b;
   p
 enddef;
 
@@ -83,6 +105,8 @@ vardef mind@# text anything =
   if s = "enter": do_mind anything (1); fi;
   if s = "exit": mind_backward ; fi;
   if s = "newroot": do_mind_new anything; fi;
+  if s = "base": do_mind_base anything; fi;
+  if s = "quote": do_mind_quote anything; fi;
   if s = "handle": do_mind_handle anything; fi;
   if s = "stretch":
     mindenv_set("stretch") anything;
@@ -97,41 +121,79 @@ vardef mind@# text anything =
   fi
 enddef;
 
+def mindenv_to_local =
+  save L;
+  numeric L.i, L.howfar, L.head, L.body, L.tail, L.tail;
+  numeric L.thickness, L.offset, L.stretch, L.factor;
+  pair L.tracker, L.handle;
+  color L.branchcolor, L.knotcolor;
+  L.i := mindenv_get("level");
+  L.tracker := mindenv_get("tracker[" & decimal L.i & "]");
+  L.thickness := mindenv_get("thickness");
+  L.factor := mindenv_get("factor");
+  for j = 2 upto L.i:
+    L.thickness := L.thickness / L.factor;
+  endfor;
+  L.offset := mindenv_get("offset");
+  L.head := mindenv_get("head");
+  L.body := mindenv_get("body");
+  L.tail := mindenv_get("tail");
+  L.stretch := mindenv_get("stretch");
+  L.branchcolor := mindenv_get("colors[" & decimal L.i & "]");
+  L.knotcolor := mindenv_get("knotcolor");
+  L.thought := mindenv_get("thought");
+enddef;
+
 def do_mind(expr name, angle, action) =
   begingroup;
-    save b, p, q, u;
-    save i, tracker, handle, howfar, thought, thi, off, f, pos, sign, branch_min;
-    pair b, tracker, handle, pos;
-    path p, q;
-    numeric i, howfar, thought, thi, off, f, sign;
-    % get environment variables
-    i := mindenv_get("level");
-    tracker := mindenv_get("tracker[" & decimal i & "]");
-    thought := mindenv_get("thought");
-    thi := mindenv_get("thickness");
-    f := mindenv_get("factor");
-    for j = 2 upto i: thi := thi / f; endfor;
-    off := mindenv_get("offset"); 
-    % working
-    howfar := bbwidth textext(name);
-    howfar := (1 + mindenv_get("stretch")) * howfar;
-    branch_min := mindenv_get("howclose");
-    if howfar < branch_min: howfar := branch_min; fi;
-    b := polarcoord(tracker, howfar, angle);
-    p := regular_curve(tracker, b);
-    draw p withpen pencircle scaled thi
-           withcolor mindenv_get("colors[" & decimal i & "]");
-    draw tracker withpen pencircle scaled (thi + 1pt)
-                 withcolor mindenv_get("knotcolor");
-    handle := point thought on p;
-    q := p cutbefore handle; mindenv_set("handle", handle);
-    sign := 1; pos := get_normal_offset(q, .5, thi + off, sign);
+    mindenv_to_local;
+    save b, p, q, w, pos, sign;
+    pair b, pos; path p, q; numeric w, sign;
+    w := bbwidth textext(name);
+    L.howfar := L.head + L.body + L.stretch * w + L.tail;
+    b := polarcoord(L.tracker, L.howfar, angle);
+    p := regular_curve(L.tracker, b);
+    draw p withpen pencircle scaled L.thickness withcolor L.branchcolor;
+    draw L.tracker withpen pencircle scaled (L.thickness + 2pt) withcolor L.knotcolor;
+    L.handle := point L.thought along p;
+    mindenv_set("handle", L.handle);
+    q := p cutbefore (point (arclength p - w - L.tail) on p);
+    sign := 1; pos := get_normal_offset(q, .5, L.thickness + L.offset, sign);
     draw lmt_followtext [
       text = name,
       spread = false,
-      reverse = if sign > 0: false else true fi,
+      reverse = (if sign > 0: false else: true fi),
       path = q ] shifted pos;
     if action > 0: mind_forward(b); fi;
+    % for debugging
+    mindmap.currentbase := L.tracker;
+    mindmap.currentend := b;
+    mindmap.currentbranch := p;
+  endgroup;
+enddef;
+
+def do_mind_quote(expr name, b) =
+  begingroup;
+    mindenv_to_local;
+    save p, q, w, pos, sign;
+    pair pos; path p, q; numeric w, sign;
+    w := bbwidth textext(name);
+    p := regular_curve(L.tracker, b);
+    draw p withpen pencircle scaled L.thickness withcolor L.branchcolor;
+    draw L.tracker withpen pencircle scaled (L.thickness + 2pt) withcolor L.knotcolor;
+    draw b withpen pencircle scaled (L.thickness / L.factor + 2pt) withcolor L.knotcolor;
+    L.handle := point L.thought along p;
+    mindenv_set("handle", L.handle);
+    sign := 1; pos := get_normal_offset(p, .5, L.thickness + L.offset, sign);
+    draw lmt_followtext [
+      text = name,
+      spread = false,
+      reverse = (if sign > 0: false else: true fi),
+      path = p ] shifted pos;
+    % for debugging
+    mindmap.currentbase := L.tracker;
+    mindmap.currentend := b;
+    mindmap.currentbranch := p;
   endgroup;
 enddef;
 
@@ -141,7 +203,11 @@ def do_mind_new(suffix newbase) (expr a) =
   mindenv_set("level", 1);
 enddef;
 
-vardef do_mind_handle(suffix current_handle) =
+def do_mind_base(suffix current_base) =
+  current_base = mindmap.currentbase;
+enddef;
+
+def do_mind_handle(suffix current_handle) =
   current_handle = mindenv_get("handle");
 enddef;
 

@@ -1,0 +1,219 @@
+\environment doc-style
+\starttext
+\title{The Mindmap Module}
+\blank[line]
+\midaligned{Li Yanrui (lyr.m2@live.cn)}
+\useURL[snail][https://github.com/liyanrui/snail]
+\blank
+\midaligned{\from[snail]}
+\blank[line]
+\setupbackgrounds[page][background=timestamp]
+
+\startcolumns[n=2]
+\placecontent
+\stopcolumns
+
+\subject{Introduction}
+
+The mindmap is a ConTeXt module written in MetaPost for drawing mind maps. Unlike most mind-mappint software, the mindmap module places all information on paths, its nodes carry no content at all. In other words, the module sees no container-like nodes filled with text or images. A mind map is simply a set of connected paths, and the information appears as annotations along them.
+
+The simplest \ConTeXt\ source file for using the mindmap module is as follows.
+
+\startTEX
+\usemodule[mindmap]
+\startMPpage
+
+% some MetaPost code for drawing mind map.
+
+\stopMPpage
+\stopTEX
+
+Creat a souce file named \boxquote{foo.tex} that its content is
+
+\startMP
+\usemodule[mindmap]
+\startMPpage
+mind.enter("$\delta_{ij}$ is", 15);
+  mind("1, if $i=j$.", 15);
+  mind("0, otherwise.", -15);
+mind.exit;
+\stopMPpage
+\stopMP
+
+Use the \type{context} command to compile it into \boxquote{foo.pdf} in the same directory.
+
+\starttyping
+$ context foo.tex
+\stoptyping
+
+or
+
+\starttyping
+$ context foo
+\stoptyping
+
+Then you can get the following result as shown in Example \in[first-map].
+
+\placeExample[here,force][first-map]{First mind map}{\externalfigure[01.pdf]}
+
+\section{Branches}
+
+Every thought of yours can be expressed as a single branch in a mind map---just keep it as concise as possible, for instance:
+
+\startMP
+mind("$\delta_{ij}$", 15);
+\stopMP
+
+In the code above, the \boxquote{\type{15}} is the angle that indicates the direction of the branch in map. Every branch need an angle degree like this. The example below can help you understanding these.
+
+\startexample
+pair base, a, b;
+base := mindmap.currentbase;
+mind("A", 45); a := mindmap.currentend;
+mind("B", -30); b := mindmap.currentend;
+
+path pa, pb, ox, oy;
+pa := base -- a; pb := base -- b;
+ox := base -- (base + (4cm, 0));
+oy := base -- (base + (0, 4cm));
+
+path angle_a, angle_b;
+anglelength := 1cm;
+angle_a := anglebetween(ox, pa, "\tfx $45$");
+anglelength := 1.5cm;
+angle_b := anglebetween(ox, pb, "\tfx $-30$");
+
+for it = pa, pb, ox, oy, angle_a, angle_b:
+  drawarrow it;
+endfor;
+\stopexample
+\example[option=MP][angle-degree]{Angles in mind map}{\externalfigure[02.pdf]}
+
+If a branch has some deeper ones, you need to \boxquote{\type{enter}} it and create child branches for it. When you want to go back to the parent branch and start new thought in the same level, you must \boxquote{\type{exit}} from current child branches; see the following example.
+
+\startexample
+mind.enter("$A$", 15);
+  mind("$A_{1}$", 15);
+mind.exit;
+mind.enter("$B$", -15);
+  mind("$B_{1}$", -15);
+  mind("$B_{2}$", -30);
+mind.exit;
+\stopexample
+\example[option=MP][enter-and-exit]{Entering and exiting branch}{\externalfigure[03.pdf]}
+
+\section{Style}
+
+The thickness of each branch decreases as the branch level increases. The top-level branch thickness defaults to \type{4pt}, but this can be changed with the \type{mind.thickness} macro. For the $n$-th level, the branch thickness equals the top-level thickness divided by $1.3^n$.
+
+By default, all branches are colored darkgray, but the macro \type{mind.colors} can be used to assign a specific color to each level's branches. The colors of branch knots can be controlled with the \type{mind.knotcolor} macro.
+
+The example below sets the thickness of first level branch to \type{6pt}, and assigns colors to the branches and knots of levels 1 to 3.
+
+\startexample
+mind.thickness(6pt);
+mind.colors(darkred,
+            darkblue,
+            darkgreen);
+mind.knotcolor(lightgray);
+
+mind.enter("This is $A$", 20);
+  mind("This is $A_1$", 30);
+  mind("This is $A_2$", 0);
+mind.exit;
+
+mind.enter("This is $B$", -10);
+  mind.enter("This is $B_{1}$", -5);
+    mind("This is $B_{1,1}$", 20);
+    mind("This is $B_{1,2}$", -5);
+    mind("This is $B_{1,3}$", -25);
+  mind.exit;
+  mind("This is $B_2$", -35);
+mind.exit;
+\stopexample
+\example[option=MP][branch-style]{Branch style setting}{\externalfigure[04.pdf][width=.5tw]}
+
+If you fell the lengths of branches too short, you can strech them by a given factor using the \type{mind.stretch} macro. The example below stretches the branches to twice their default length.
+
+\startexample
+mind.stretch(1.3);
+mind("A", 0);
+mind("B", 90);
+mind("C", -90);
+mind("D", -180);
+
+/BTEX\strut/ETEX
+
+/BTEX\strut/ETEX
+
+/BTEX\strut/ETEX
+\stopexample
+\example[option=MP][stretch]{Stretching branches}{\externalfigure[05.pdf]}
+
+\section{New Root}
+
+Mind maps drawn by the mindmap module are not strictly tree-structured. The default root is at \type{(0, 0)}, but you can use the \type{mind.newroot} macro to create the starting point or root of new mind map. For instance, 
+
+\startexample
+mind.enter("A", 0);
+  mind("something in A", -10);
+mind.exit;
+
+mind.newroot(mind_b, (0, -3cm));
+mind.enter("B", 0);
+  mind("somthing in B", 15);
+mind.exit;
+\stopexample
+\example[option=MP][new-root]{New root}{\externalfigure[06.pdf]}
+
+The \type{mind_b} in the code above is a variable of MetaPost's \type{pair} type, that stores the location of the new root.
+
+\section{Branch Quote}
+
+Once you create a new branch, you can catch its base and handle point with the marcros \type{mind.base} and \type{mind.handle}.
+
+\startexample
+pair anchor[];  
+mind.knotcolor(darkgray);
+mind.enter("A", 0);
+  mind("something in A", -15);
+  mind.handle(anchor1);
+  mind("something else in A", -35);
+  mind.handle(anchor2);
+  mind.base(anchor3);
+mind.exit;
+
+pickup pencircle scaled 6pt;
+draw anchor1 withcolor darkblue;
+draw anchor2 withcolor darkgreen;
+draw anchor3 withcolor darkred;
+\stopexample
+\example[option=MP][anchors]{Anchors}{\externalfigure[07.pdf]}
+
+Based on these anchor points, we can quote a branch in other tree with a new root. The following example shows a scenario where two trees share a branch.
+
+\startMP
+pair demo;  
+mind.enter("A", 0);
+  mind("something in A", -15);
+  mind.enter("something else in A", -35);
+    mind("more thing", -20); mind.base(demo);
+  mind.exit;  
+mind.exit;
+mind.newroot(B, (0, -3cm));
+mind.enter("B", 10);
+  mind.quote("quoting", demo);
+  mind("somthing in B", -30);
+mind.exit
+\stopMP
+\placeExample[here,force][branch-quote]{Quoting branch}{\externalfigure[08.pdf]}
+
+\subject{Afterwords}
+
+The mindmap module is a practice in learning the MetaPost language. Its inspiration and foundation come from the macro \type{lmt_followtext}, implemented by Hans Hagen in LuaMetaFun---the next-generation MetaPost still under development---which places text along an arbitrary curved path; see Chapter 5 of the LuaMetaFun manual. Within the ConTeXt LMTX environment, the manual can be founded with the following command:
+
+\starttyping
+$ mtxrun --search luametafun.pdf
+\stoptyping
+
+\stoptext
