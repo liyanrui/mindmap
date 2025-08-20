@@ -209,18 +209,18 @@ pair p;
 MM.BEGIN := 0; MM.END := 1;
 mind.enter("\type{/usr/src/}", 0);
   mind.stretch(2);
-  mind("\type{kernel-6.6}/", 0);
+  mind("\type{kernel-6.6/}", 0);
   mind.tailend(p);
-  mind.converge("\type{kernel-6.4}/", 25, p);
-  mind.converge.enter("\type{kernel-6.8}/", -25, p);
+  mind.converge("\type{kernel-6.4/}", 25, p);
+  mind.converge.enter("\type{kernel-6.8/}", -25, p);
     mind.stretch(1);
-    mind("\type{arch}/", 0);
+    mind("\type{arch/}", 0);
   mind.ext;
 mind.exit;
 \stopMP
 \placeExample[here,force][convergence]{Branch convergence}{\externalfigure[09.pdf]}
 
-In the example above, \type{MM.BEGIN} and \type{MM.END} both are the module parameters. They delimit the segment of a branch where annotation text may appear; the text is restricted to the interval [MM.BEGIN, MM.END] along that branch. The segment [0, 1] represents the entire branch.
+In the example above, \type{MM.BEGIN} and \type{MM.END} both are the module parameters. They delimit the segment of a branch where annotation text may appear; the text is restricted to the interval [\type{MM.BEGIN}, \type{MM.END}] along that branch. The segment [0, 1] represents the entire branch.
 
 \subject{Afterwords}
 
